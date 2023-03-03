@@ -1,11 +1,13 @@
-import openai
+# import openai
 import tkinter as tk
 from tkinter import filedialog
 from pydub import AudioSegment
 from pathlib import Path
 import os
-import json
+# import json
 import pyperclip
+import whisper
+# import torch
 
 """
 Authors: Lawson Fuller and OpenAI ChatGPT (Most of the coding was done by OpenAI ChatGPT)
@@ -13,23 +15,34 @@ Purpose: Easy GUI for Using OpenAI Whisper
 March 2, 2023
 """
 
-openai.api_key = "your_API_key_here" #TODO: You must put your OpenAI API key here in order to successfully run the code!
-
 def convert_speech_to_text(mp3_file_path, mode):
     """
     Here, we will be using openai to make the API call to convert speech to text, tkinter for creating the GUI, and tkfilebrowser for selecting files.
     :param mp3_file_path: str
     :param mode: str
-    :return: string of transcript in form "{ \n text: *your_text_string* \n }".
+    :return: dictionary of transcript in form "{ "text": *your_text_string* }".
     """
-    # Here, we are using the whisper model to convert the speech to text. You can tweak the parameters to adjust the accuracy of the conversion.
-    # Note: you need to be using OpenAI Python v0.27.0 for the code below to work
-    audio_file = open(mp3_file_path, "rb")
+    model_size = "medium"#"large-v2"
+    # if "tiny" in model_size.lower() or "base" in model_size.lower() or "small" in model_size.lower():
+    #     print("Running on CPU due to small model size.")
+    #     devices = torch.device("cpu")
+    # else:
+    #     if torch.cuda.is_available(): print("CUDA-enabled GPU detected. Using GPU.")
+    #     devices = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    devices = "cpu"
+    model = whisper.load_model(model_size, device=devices)
+
+    # convert mp3 to wav
+    sound = AudioSegment.from_mp3(mp3_file_path)
+    dst = "test.wav"
+    sound.export(dst, format="wav")
+
     if mode=="transcribe":
-        transcript = openai.Audio.transcribe("whisper-1", audio_file)
+        transcript = model.transcribe(dst)
     if mode=="translate":
-        transcript = openai.Audio.translate("whisper-1", audio_file)
-    return str(transcript)
+        transcript = model.translate(dst)
+
+    return transcript
 
 def select_file():
     """convert speech to text using OpenAI's whisper API
@@ -100,7 +113,6 @@ def convert_to_mp3(file_path):
     print(f"Conversion complete. MP3 file saved to {output_file}")
     return str(output_file)
 
-
 def convert():
     """function to handle the conversion"""
     mode = mode_var.get()
@@ -111,10 +123,10 @@ def convert():
     # Convert to mp3 if file is not already in mp3 format
     mp3_file_path = convert_to_mp3(audio_file)
     if mp3_file_path and save_location and file_size_is_small_enough(mp3_file_path):
-        text = convert_speech_to_text(mp3_file_path, mode)
+        transcript = convert_speech_to_text(mp3_file_path, mode)
         filename = os.path.splitext(os.path.basename(mp3_file_path))[0]
-        with open(f"{save_location}/{filename}.txt", "w") as f:
-            extracted_text = json.loads(text)['text']
+        with open(f"{save_location}/{filename}.txt", "w", encoding='utf-8') as f:
+            extracted_text = transcript['text']
             f.write(extracted_text)
             pyperclip.copy(extracted_text)
             print("Copied to clipboard: "+extracted_text+"\n-------------\n")

@@ -1,0 +1,12 @@
+
+*.zip
+build/*
+dist/*
+*.spec
+*.wav
+*.mp3
+*.json
+*.srt
+*.tsv
+*.txt
+*.vtt
